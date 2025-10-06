@@ -11,12 +11,11 @@ spec:
     targetRevision: "77.13.0"
     helm:
       valueFiles:
-        - $values/argocd-apps/monitoring/values.yaml
-
+        - values.yaml
   sources:
     - repoURL: "https://github.com/AbdalrahmanBashir/gitops-repo.git"
       targetRevision: main
-      path: argocd-apps/monitoring
+      path: chart-configs/kube-prometheus-stack
 
   destination:
     server: https://kubernetes.default.svc
