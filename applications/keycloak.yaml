@@ -219,8 +219,6 @@ spec:
           imagePullPolicy: IfNotPresent
           args:
             - "start"
-            - "--optimized"
-            - "--auto-build"                # ensures Postgres driver is added once
             - "--http-enabled=true"
             - "--hostname=keycloak.abdalrahman.tech"
             - "--hostname-strict=false"
