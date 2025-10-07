@@ -10,7 +10,7 @@ spec:
     chart: passbolt
     targetRevision: "1.4.0"
     helm:
-      valueObject:
+      valuesObject:
           fullnameOverride: passbolt
 
           redisDependencyEnabled: true
