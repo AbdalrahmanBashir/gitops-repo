@@ -205,6 +205,16 @@ spec:
     spec:
       securityContext:
         fsGroup: 1000
+      initContainers:
+        - name: wait-for-postgres
+          image: postgres:16
+          command: ["sh","-c","until pg_isready -h postgres -p 5432 -U keycloak; do sleep 2; done"]
+          env:
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: keycloak-db
+                  key: POSTGRES_PASSWORD
       containers:
         - name: keycloak
           image: quay.io/keycloak/keycloak:25.0
@@ -216,12 +226,12 @@ spec:
             - "--hostname=keycloak.abdalrahman.tech"
             - "--hostname-strict=false"
             - "--proxy-headers=xforwarded"
-            - "--db-url-host=postgres"
-            - "--db-username=keycloak"
-            - "--db-password=$(KC_DB_PASSWORD)"
+            - "--db-url=jdbc:postgresql://postgres:5432/keycloak"
           env:
             - name: KC_DB
               value: postgres
+            - name: KC_DB_USERNAME
+              value: keycloak
             - name: KEYCLOAK_ADMIN
               valueFrom:
                 secretKeyRef:
