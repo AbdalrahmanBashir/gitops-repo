@@ -211,10 +211,11 @@ spec:
           imagePullPolicy: IfNotPresent
           args:
             - "start"
+            - "optimized"
             - "--http-enabled=true"
             - "--hostname=keycloak.abdalrahman.tech"
             - "--hostname-strict=false"
-            - "--proxy=edge"
+            - "--proxy-headers=xforwarded"
             - "--db=postgres"
             - "--db-url-host=postgres"
             - "--db-username=keycloak"
