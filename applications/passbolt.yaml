@@ -12,7 +12,12 @@ spec:
     helm:
         values: |
           fullnameOverride: passbolt
-          namespaceOverride: passbolt
+          redisDependencyEnabled: true
+          postgresqlDependencyEnabled: true
+          mariadbDependencyEnabled: false
+          app:
+            database:
+              kind: postgresql
           ingress:
             enabled: true
             className: nginx
@@ -21,6 +26,8 @@ spec:
               nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
             hosts:
               - host: passbolt.abdalrahman.tech
+                paths:
+                  - /
             tls:
               - secretName: passbolt-tls
                 hosts:
@@ -64,6 +71,9 @@ spec:
                 enabled: true
                 labels:
                   release: kube-prometheus-stack
+          passboltEnv:
+            plain:
+              APP_FULL_BASE_URL: "https://passbolt.abdalrahman.tech"
           smtp:
             enabled: false
   destination:
