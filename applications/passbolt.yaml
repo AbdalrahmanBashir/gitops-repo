@@ -22,7 +22,7 @@ spec:
             kind: postgresql
 
         ingress:
-          enabled: false
+          enabled: true
           className: nginx
           annotations:
             cert-manager.io/cluster-issuer: "letsencrypt-prod"
@@ -33,10 +33,6 @@ spec:
                 - path: /
                   pathType: Prefix
                   port: http
-          tls:
-            - secretName: passbolt-tls
-              hosts:
-                - passbolt.abdalrahman.tech
 
         persistence:
           enabled: true
