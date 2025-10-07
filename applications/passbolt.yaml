@@ -6,9 +6,9 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: "https://charts.passbolt.com"
+    repoURL: "https://download.passbolt.com/charts/passbolt"
     chart: passbolt
-    targetRevision: "5.0.3"
+    targetRevision: "1.4.0"
     helm:
         values: |
           fullnameOverride: passbolt
