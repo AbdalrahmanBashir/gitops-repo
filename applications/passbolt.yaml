@@ -18,6 +18,19 @@ spec:
         postgresqlDependencyEnabled: true
 
         app:
+          image:
+            tag: 5.4.1-1-ce-non-root
+          containerPorts:
+            http: 8080
+            https: 4433
+          service:
+            ports:
+              http:
+                port: 80 
+                targetPort: 8080
+              https:
+                port: 443
+                targetPort: 4433
           database:
             kind: postgresql
 
