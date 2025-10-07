@@ -16,12 +16,15 @@ spec:
 
           ingress:
             enabled: true
-            ingressClassName: nginx
+            className: nginx
             annotations:
               cert-manager.io/cluster-issuer: "letsencrypt-prod"
               nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
             hosts:
-              - passbolt.abdalrahman.tech
+              - host: passbolt.abdalrahman.tech
+                paths:
+                  - path: /
+                    pathType: Prefix
             tls:
               - secretName: passbolt-tls
                 hosts:
@@ -53,9 +56,10 @@ spec:
 
           postgresql:
             enabled: true
-            postgresqlDatabase: passbolt
-            postgresqlUsername: passbolt
-            postgresqlPassword: securepassword
+            auth:
+              username: passbolt
+              password: securepassword
+              database: passbolt
             primary:
               persistence:
                 enabled: true
