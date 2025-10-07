@@ -22,8 +22,6 @@ spec:
               nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
             hosts:
               - host: passbolt.abdalrahman.tech
-                paths:
-                  - /
             tls:
               - secretName: passbolt-tls
                 hosts:
