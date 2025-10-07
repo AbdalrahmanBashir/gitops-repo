@@ -79,6 +79,10 @@ spec:
         passboltEnv:
           plain:
             APP_FULL_BASE_URL: "https://passbolt.abdalrahman.tech"
+            CACHE_CAKE_DEFAULT_SERVER: "passbolt-redis"
+            CACHE_CAKE_DEFAULT_PORT: "6379"
+          secret:
+            CACHE_CAKE_DEFAULT_PASSWORD: "changeme-redis"
 
         smtp:
           enabled: false
