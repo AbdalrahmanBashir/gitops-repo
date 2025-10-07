@@ -1,0 +1,85 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: passbolt
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: "https://download.passbolt.com/charts/passbolt"
+    chart: passbolt
+    targetRevision: "5.0.3"
+    helm:
+        values: |
+          fullnameOverride: passbolt
+          namespaceOverride: passbolt
+
+          ingress:
+            enabled: true
+            ingressClassName: nginx
+            annotations:
+              cert-manager.io/cluster-issuer: "letsencrypt-prod"
+              nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+            hosts:
+              - passbolt.abdalrahman.tech
+                paths:
+                  - path: /
+                    pathType: Prefix
+            tls:
+              - secretName: passbolt-tls
+                hosts:
+                  - passbolt.abdalrahman.tech
+          persistence:
+            enabled: true
+            storageClass: nfs-client
+            accessModes: ["ReadWriteOnce"]
+            size: 10Gi
+          
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          
+          redis:
+            enabled: true
+            metrics:
+              enabled: true
+              serviceMonitor:
+                enabled: true
+                labels:
+                  release: kube-prometheus-stack
+          mariadb:
+            enabled: false
+
+          postgresql:
+            enabled: true
+            postgresqlDatabase: passbolt
+            postgresqlUsername: passbolt
+            postgresqlPassword: securepassword
+            primary:
+              persistence:
+                enabled: true
+                storageClass: nfs-client
+                size: 10Gi
+            metrics:
+              enabled: true
+              serviceMonitor:
+                enabled: true
+                labels:
+                  release: kube-prometheus-stack
+          smtp:
+            enabled: false
+  destination:
+    server: "https://kubernetes.default.svc"
+    namespace: passbolt
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+      - RespectIgnoreDifferences=true
