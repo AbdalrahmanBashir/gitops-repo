@@ -12,18 +12,21 @@ spec:
     helm:
         values: |
           fullnameOverride: passbolt
+
           redisDependencyEnabled: true
-          postgresqlDependencyEnabled: true
           mariadbDependencyEnabled: false
+          postgresqlDependencyEnabled: true
+
           app:
             database:
               kind: postgresql
+
           ingress:
             enabled: true
             className: nginx
             annotations:
               cert-manager.io/cluster-issuer: "letsencrypt-prod"
-              nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+              nginx.ingress.kubernetes.io/ssl-redirect: "true"
             hosts:
               - host: passbolt.abdalrahman.tech
                 paths:
@@ -34,33 +37,25 @@ spec:
               - secretName: passbolt-tls
                 hosts:
                   - passbolt.abdalrahman.tech
+
           persistence:
             enabled: true
             storageClass: nfs-client
             accessModes: ["ReadWriteOnce"]
             size: 10Gi
+
           resources:
             requests:
-              memory: "256Mi"
               cpu: "100m"
+              memory: "256Mi"
             limits:
-              memory: "512Mi"
               cpu: "500m"
-          redis:
-            enabled: true
-            metrics:
-              enabled: true
-              serviceMonitor:
-                enabled: true
-                labels:
-                  release: kube-prometheus-stack
-          mariadb:
-            enabled: false
+              memory: "512Mi"
+
           postgresql:
-            enabled: true
             auth:
               username: passbolt
-              password: securepassword
+              password: "securepassword"
               database: passbolt
             primary:
               persistence:
@@ -73,11 +68,27 @@ spec:
                 enabled: true
                 labels:
                   release: kube-prometheus-stack
+
+          redis:
+            auth:
+              enabled: true
+              password: "changeme-redis"
+            sentinel:
+              enabled: true
+            metrics:
+              enabled: true
+              serviceMonitor:
+                enabled: true
+                labels:
+                  release: kube-prometheus-stack
+
           passboltEnv:
             plain:
               APP_FULL_BASE_URL: "https://passbolt.abdalrahman.tech"
+
           smtp:
             enabled: false
+
   destination:
     server: "https://kubernetes.default.svc"
     namespace: passbolt
