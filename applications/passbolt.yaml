@@ -6,7 +6,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: "https://download.passbolt.com/charts/passbolt"
+    repoURL: "https://charts.passbolt.com"
     chart: passbolt
     targetRevision: "5.0.3"
     helm:
