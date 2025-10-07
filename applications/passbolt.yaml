@@ -43,6 +43,8 @@ spec:
           hosts:
             - host: passbolt.abdalrahman.tech
               paths:
+                - path: /
+                  pathType: Prefix
                   port: 80
                 
 
