@@ -21,13 +21,12 @@ spec:
     syncOptions:
       - CreateNamespace=true
 ---
-
 apiVersion: v1
 kind: Namespace
 metadata:
   name: keycloak
 ---
-
+# Admin
 apiVersion: v1
 kind: Secret
 metadata:
@@ -48,7 +47,7 @@ stringData:
   POSTGRES_PASSWORD: supersecuredbpass
   KC_DB_PASSWORD: supersecuredbpass
 ---
-
+# Postgres: headless service for stable identity
 apiVersion: v1
 kind: Service
 metadata:
@@ -65,7 +64,7 @@ spec:
       port: 5432
       targetPort: 5432
 ---
-
+# Postgres: regular ClusterIP for clients
 apiVersion: v1
 kind: Service
 metadata:
@@ -82,7 +81,7 @@ spec:
       port: 5432
       targetPort: 5432
 ---
-
+# Postgres with persistent storage
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
@@ -135,7 +134,6 @@ spec:
             requests:
               cpu: "100m"
               memory: "256Mi"
-
   volumeClaimTemplates:
     - metadata:
         name: data
@@ -146,7 +144,7 @@ spec:
           requests:
             storage: 10Gi
 ---
-
+# Keycloak: headless for stable identity
 apiVersion: v1
 kind: Service
 metadata:
@@ -166,7 +164,7 @@ spec:
       port: 9000
       targetPort: 9000
 ---
-
+# Keycloak: ClusterIP for ingress routing
 apiVersion: v1
 kind: Service
 metadata:
@@ -186,7 +184,7 @@ spec:
       port: 9000
       targetPort: 9000
 ---
-
+# Keycloak StatefulSet
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
@@ -217,36 +215,52 @@ spec:
                   key: POSTGRES_PASSWORD
       containers:
         - name: keycloak
-          image: quay.io/keycloak/keycloak:25.0
+          image: quay.io/keycloak/keycloak:26.4.0
           imagePullPolicy: IfNotPresent
           args:
             - "start"
             - "--optimized"
+            - "--auto-build"                # ensures Postgres driver is added once
             - "--http-enabled=true"
             - "--hostname=keycloak.abdalrahman.tech"
             - "--hostname-strict=false"
             - "--proxy-headers=xforwarded"
-            - "--db-url=jdbc:postgresql://postgres:5432/keycloak"
           env:
-            - name: KC_DB
-              value: postgres
-            - name: KC_DB_USERNAME
-              value: keycloak
-            - name: KEYCLOAK_ADMIN
-              valueFrom:
-                secretKeyRef:
-                  name: keycloak-admin
-                  key: KEYCLOAK_ADMIN
-            - name: KEYCLOAK_ADMIN_PASSWORD
+            # Admin bootstrap
+            - name: KC_BOOTSTRAP_ADMIN_USERNAME
+              value: "admin"
+            - name: KC_BOOTSTRAP_ADMIN_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: keycloak-admin
                   key: KEYCLOAK_ADMIN_PASSWORD
+
+            # Health + proxy behavior
+            - name: KC_HEALTH_ENABLED
+              value: "true"
+            - name: KC_PROXY_HEADERS
+              value: "xforwarded"
+            - name: KC_HTTP_ENABLED
+              value: "true"
+            - name: KC_HOSTNAME_STRICT
+              value: "false"
+
+            # Database via envs
+            - name: KC_DB
+              value: "postgres"
+            - name: KC_DB_USERNAME
+              value: "keycloak"
             - name: KC_DB_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: keycloak-db
                   key: KC_DB_PASSWORD
+            - name: KC_DB_URL_HOST
+              value: "postgres"
+            - name: KC_DB_URL_DATABASE
+              value: "keycloak"
+            # - name: KC_DB_URL_PORT
+            #   value: "5432"
             - name: JAVA_OPTS
               value: "-XX:+UseContainerSupport -XX:MaxRAMPercentage=75"
           ports:
@@ -254,20 +268,24 @@ spec:
               containerPort: 8080
             - name: http-mgmt
               containerPort: 9000
+          startupProbe:
+            httpGet:
+              path: /health/started
+              port: 9000
+            periodSeconds: 1
+            failureThreshold: 600
           readinessProbe:
             httpGet:
               path: /health/ready
               port: 9000
-            initialDelaySeconds: 20
             periodSeconds: 10
-            failureThreshold: 10
+            failureThreshold: 3
           livenessProbe:
             httpGet:
               path: /health/live
               port: 9000
-            initialDelaySeconds: 60
             periodSeconds: 10
-            failureThreshold: 10
+            failureThreshold: 3
           resources:
             requests:
               cpu: "250m"
@@ -288,7 +306,7 @@ spec:
           requests:
             storage: 5Gi
 ---
-
+# Ingress (NGINX + cert-manager)
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
