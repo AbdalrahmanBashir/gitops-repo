@@ -24,12 +24,15 @@ spec:
         ingress:
           enabled: true
           className: nginx
+          annotations:
+            nginx.ingress.kubernetes.io/ssl-redirect: "true"
+            nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
           hosts:
             - host: passbolt.abdalrahman.tech
               paths:
                 - path: /
                   pathType: Prefix
-                  port: http
+                  port: 80
 
         persistence:
           enabled: true
