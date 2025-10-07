@@ -216,11 +216,12 @@ spec:
             - "--hostname=keycloak.abdalrahman.tech"
             - "--hostname-strict=false"
             - "--proxy-headers=xforwarded"
-            - "--db=postgres"
             - "--db-url-host=postgres"
             - "--db-username=keycloak"
             - "--db-password=$(KC_DB_PASSWORD)"
           env:
+            - name: KC_DB
+              value: postgres
             - name: KEYCLOAK_ADMIN
               valueFrom:
                 secretKeyRef:
