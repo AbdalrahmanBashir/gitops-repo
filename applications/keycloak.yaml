@@ -8,7 +8,7 @@ spec:
   source:
     repoURL: https://github.com/AbdalrahmanBashir/gitops-repo.git
     targetRevision: HEAD
-    path: applications/keycloak
+    path: applications
     directory:
       recurse: true
   destination:
