@@ -13,7 +13,6 @@ spec:
         values: |
           fullnameOverride: passbolt
           namespaceOverride: passbolt
-
           ingress:
             enabled: true
             className: nginx
@@ -31,7 +30,6 @@ spec:
             storageClass: nfs-client
             accessModes: ["ReadWriteOnce"]
             size: 10Gi
-          
           resources:
             requests:
               memory: "256Mi"
@@ -39,7 +37,6 @@ spec:
             limits:
               memory: "512Mi"
               cpu: "500m"
-          
           redis:
             enabled: true
             metrics:
@@ -50,7 +47,6 @@ spec:
                   release: kube-prometheus-stack
           mariadb:
             enabled: false
-
           postgresql:
             enabled: true
             auth:
