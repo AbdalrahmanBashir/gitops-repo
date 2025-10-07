@@ -6,91 +6,90 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: "https://download.passbolt.com/charts/passbolt"
+    repoURL: https://download.passbolt.com/charts/passbolt
     chart: passbolt
     targetRevision: "1.4.0"
     helm:
-      valuesObject:
-          fullnameOverride: passbolt
+      values: |
+        fullnameOverride: passbolt
 
-          redisDependencyEnabled: true
-          mariadbDependencyEnabled: false
-          postgresqlDependencyEnabled: true
+        redisDependencyEnabled: true
+        mariadbDependencyEnabled: false
+        postgresqlDependencyEnabled: true
 
-          app:
-            database:
-              kind: postgresql
+        app:
+          database:
+            kind: postgresql
 
-          ingress:
+        ingress:
+          enabled: true
+          className: nginx
+          annotations:
+            cert-manager.io/cluster-issuer: "letsencrypt-prod"
+            nginx.ingress.kubernetes.io/ssl-redirect: "true"
+          hosts:
+            - host: passbolt.abdalrahman.tech
+              paths:
+                - path: /
+                  pathType: Prefix
+                  port: http
+          tls:
+            - secretName: passbolt-tls
+              hosts:
+                - passbolt.abdalrahman.tech
+
+        persistence:
+          enabled: true
+          storageClass: nfs-client
+          accessModes: ["ReadWriteOnce"]
+          size: 10Gi
+
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "256Mi"
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
+
+        postgresql:
+          auth:
+            username: passbolt
+            password: "securepassword"
+            database: passbolt
+          primary:
+            persistence:
+              enabled: true
+              storageClass: nfs-client
+              size: 10Gi
+          metrics:
             enabled: true
-            className: nginx
-            annotations:
-              cert-manager.io/cluster-issuer: "letsencrypt-prod"
-              nginx.ingress.kubernetes.io/ssl-redirect: "true"
-            hosts:
-              - host: passbolt.abdalrahman.tech
-                paths:
-                  - path: /
-                    pathType: Prefix
-                    port: http
-            tls:
-              - secretName: passbolt-tls
-                hosts:
-                  - passbolt.abdalrahman.tech
+            serviceMonitor:
+              enabled: true
+              labels:
+                release: kube-prometheus-stack
 
-          persistence:
+        redis:
+          auth:
             enabled: true
-            storageClass: nfs-client
-            accessModes: ["ReadWriteOnce"]
-            size: 10Gi
-
-          resources:
-            requests:
-              cpu: "100m"
-              memory: "256Mi"
-            limits:
-              cpu: "500m"
-              memory: "512Mi"
-
-          postgresql:
-            auth:
-              username: passbolt
-              password: "securepassword"
-              database: passbolt
-            primary:
-              persistence:
-                enabled: true
-                storageClass: nfs-client
-                size: 10Gi
-            metrics:
+            password: "changeme-redis"
+          sentinel:
+            enabled: true
+          metrics:
+            enabled: true
+            serviceMonitor:
               enabled: true
-              serviceMonitor:
-                enabled: true
-                labels:
-                  release: kube-prometheus-stack
+              labels:
+                release: kube-prometheus-stack
 
-          redis:
-            auth:
-              enabled: true
-              password: "changeme-redis"
-            sentinel:
-              enabled: true
-            metrics:
-              enabled: true
-              serviceMonitor:
-                enabled: true
-                labels:
-                  release: kube-prometheus-stack
+        passboltEnv:
+          plain:
+            APP_FULL_BASE_URL: "https://passbolt.abdalrahman.tech"
 
-          passboltEnv:
-            plain:
-              APP_FULL_BASE_URL: "https://passbolt.abdalrahman.tech"
-
-          smtp:
-            enabled: false
-
+        smtp:
+          enabled: false
   destination:
-    server: "https://kubernetes.default.svc"
+    server: https://kubernetes.default.svc
     namespace: passbolt
   syncPolicy:
     automated:
@@ -99,4 +98,3 @@ spec:
     syncOptions:
       - CreateNamespace=true
       - ServerSideApply=true
-      - RespectIgnoreDifferences=true
