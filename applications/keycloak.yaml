@@ -1,198 +1,43 @@
-apiVersion: argoproj.io/v1alpha1
-kind: Application
+apiVersion: v1
+kind: Service
 metadata:
   name: keycloak
-  namespace: argocd
-spec:
-  project: default
-  source:
-    repoURL: https://github.com/AbdalrahmanBashir/gitops-repo.git
-    targetRevision: HEAD
-    path: applications
-    directory:
-      recurse: true
-  destination:
-    server: https://kubernetes.default.svc
-    namespace: keycloak
-  syncPolicy:
-    automated:
-      selfHeal: true
-      prune: true
-    syncOptions:
-      - CreateNamespace=true
----
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: keycloak
----
-# Admin
-apiVersion: v1
-kind: Secret
-metadata:
-  name: keycloak-admin
-  namespace: keycloak
-type: Opaque
-stringData:
-  KEYCLOAK_ADMIN: admin
-  KEYCLOAK_ADMIN_PASSWORD: supersecureadminpass
----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: keycloak-db
-  namespace: keycloak
-type: Opaque
-stringData:
-  POSTGRES_PASSWORD: supersecuredbpass
-  KC_DB_PASSWORD: supersecuredbpass
----
-# Postgres: headless service for stable identity
-apiVersion: v1
-kind: Service
-metadata:
-  name: postgres-hl
-  namespace: keycloak
-  labels:
-    app: postgres
-spec:
-  clusterIP: None
-  selector:
-    app: postgres
-  ports:
-    - name: tcp
-      port: 5432
-      targetPort: 5432
----
-# Postgres: regular ClusterIP for clients
-apiVersion: v1
-kind: Service
-metadata:
-  name: postgres
-  namespace: keycloak
-  labels:
-    app: postgres
-spec:
-  type: ClusterIP
-  selector:
-    app: postgres
-  ports:
-    - name: tcp
-      port: 5432
-      targetPort: 5432
----
-# Postgres with persistent storage
-apiVersion: apps/v1
-kind: StatefulSet
-metadata:
-  name: postgres
-  namespace: keycloak
-spec:
-  serviceName: postgres-hl
-  replicas: 1
-  selector:
-    matchLabels:
-      app: postgres
-  template:
-    metadata:
-      labels:
-        app: postgres
-    spec:
-      securityContext:
-        fsGroup: 999
-      containers:
-        - name: postgres
-          image: postgres:16
-          imagePullPolicy: IfNotPresent
-          env:
-            - name: POSTGRES_DB
-              value: keycloak
-            - name: POSTGRES_USER
-              value: keycloak
-            - name: POSTGRES_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: keycloak-db
-                  key: POSTGRES_PASSWORD
-          ports:
-            - containerPort: 5432
-              name: tcp
-          volumeMounts:
-            - name: data
-              mountPath: /var/lib/postgresql/data
-          readinessProbe:
-            exec:
-              command: ["sh","-c","pg_isready -U keycloak -d keycloak -h 127.0.0.1"]
-            initialDelaySeconds: 10
-            periodSeconds: 10
-          livenessProbe:
-            exec:
-              command: ["sh","-c","pg_isready -U keycloak -d keycloak -h 127.0.0.1"]
-            initialDelaySeconds: 30
-            periodSeconds: 10
-          resources:
-            requests:
-              cpu: "100m"
-              memory: "256Mi"
-  volumeClaimTemplates:
-    - metadata:
-        name: data
-      spec:
-        accessModes: ["ReadWriteOnce"]
-        storageClassName: nfs-client
-        resources:
-          requests:
-            storage: 10Gi
----
-# Keycloak: headless for stable identity
-apiVersion: v1
-kind: Service
-metadata:
-  name: keycloak-hl
-  namespace: keycloak
   labels:
     app: keycloak
 spec:
-  clusterIP: None
-  selector:
-    app: keycloak
   ports:
-    - name: http
+    - protocol: TCP
       port: 8080
-      targetPort: 8080
-    - name: http-mgmt
-      port: 9000
-      targetPort: 9000
+      targetPort: http
+      name: http
+  selector:
+    app: keycloak
+  type: ClusterIP
 ---
-# Keycloak: ClusterIP for ingress routing
 apiVersion: v1
 kind: Service
 metadata:
-  name: keycloak
-  namespace: keycloak
   labels:
     app: keycloak
+  name: keycloak-discovery
 spec:
-  type: ClusterIP
   selector:
     app: keycloak
-  ports:
-    - name: http
-      port: 8080
-      targetPort: 8080
-    - name: http-mgmt
-      port: 9000
-      targetPort: 9000
+  clusterIP: None
+  type: ClusterIP
 ---
-# Keycloak StatefulSet
 apiVersion: apps/v1
+# Use a stateful setup to ensure that for a rolling update Pods are restarted with a rolling strategy one-by-one.
+# This prevents losing in-memory information stored redundantly in two Pods.
 kind: StatefulSet
 metadata:
   name: keycloak
-  namespace: keycloak
+  labels:
+    app: keycloak
 spec:
-  serviceName: keycloak-hl
-  replicas: 1
+  serviceName: keycloak-discovery
+  # Run with one replica to save resources, or with two replicas to allow for rolling updates for configuration changes
+  replicas: 2
   selector:
     matchLabels:
       app: keycloak
@@ -201,71 +46,55 @@ spec:
       labels:
         app: keycloak
     spec:
-      securityContext:
-        fsGroup: 1000
-      initContainers:
-        - name: wait-for-postgres
-          image: postgres:16
-          command: ["sh","-c","until pg_isready -h postgres -p 5432 -U keycloak; do sleep 2; done"]
-          env:
-            - name: PGPASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: keycloak-db
-                  key: POSTGRES_PASSWORD
       containers:
         - name: keycloak
           image: quay.io/keycloak/keycloak:26.4.0
-          imagePullPolicy: IfNotPresent
-          args:
-            - "start"
-            - "--http-enabled=true"
-            - "--hostname=keycloak.abdalrahman.tech"
-            - "--hostname-strict=false"
-            - "--proxy-headers=xforwarded"
+          args: ["start"]
           env:
-            # Admin bootstrap
             - name: KC_BOOTSTRAP_ADMIN_USERNAME
               value: "admin"
             - name: KC_BOOTSTRAP_ADMIN_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: keycloak-admin
-                  key: KEYCLOAK_ADMIN_PASSWORD
-
-            # Health + proxy behavior
-            - name: KC_HEALTH_ENABLED
-              value: "true"
+              value: "admin"
+            # In a production environment, add a TLS certificate to Keycloak to either end-to-end encrypt the traffic between
+            # the client or Keycloak, or to encrypt the traffic between your proxy and Keycloak.
+            # Respect the proxy headers forwarded by the reverse proxy
+            # In a production environment, verify which proxy type you are using, and restrict access to Keycloak
+            # from other sources than your proxy if you continue to use proxy headers.
             - name: KC_PROXY_HEADERS
               value: "xforwarded"
             - name: KC_HTTP_ENABLED
               value: "true"
+            # In this explorative setup, no strict hostname is set.
+            # For production environments, set a hostname for a secure setup.
             - name: KC_HOSTNAME_STRICT
               value: "false"
-
-            # Database via envs
-            - name: KC_DB
-              value: "postgres"
-            - name: KC_DB_USERNAME
-              value: "keycloak"
-            - name: KC_DB_PASSWORD
+            - name: KC_HEALTH_ENABLED
+              value: "true"
+            - name: 'KC_CACHE'
+              value: 'ispn'
+            # Passing the Pod's IP primary address to the JGroups clustering as this is required in IPv6 only setups
+            - name: POD_IP
               valueFrom:
-                secretKeyRef:
-                  name: keycloak-db
-                  key: KC_DB_PASSWORD
-            - name: KC_DB_URL_HOST
-              value: "postgres"
-            - name: KC_DB_URL_DATABASE
-              value: "keycloak"
-            # - name: KC_DB_URL_PORT
-            #   value: "5432"
-            - name: JAVA_OPTS
-              value: "-XX:+UseContainerSupport -XX:MaxRAMPercentage=75"
+                fieldRef:
+                  fieldPath: status.podIP
+            # Instruct JGroups which DNS hostname to use to discover other Keycloak nodes
+            # Needs to be unique for each Keycloak cluster
+            - name: JAVA_OPTS_APPEND
+              value: '-Djgroups.bind.address=$(POD_IP)'
+            - name: 'KC_DB_URL_DATABASE'
+              value: 'keycloak'
+            - name: 'KC_DB_URL_HOST'
+              value: 'postgres'
+            - name: 'KC_DB'
+              value: 'postgres'
+            # In a production environment, use a secret to store username and password to the database
+            - name: 'KC_DB_PASSWORD'
+              value: 'keycloak'
+            - name: 'KC_DB_USERNAME'
+              value: 'keycloak'
           ports:
             - name: http
               containerPort: 8080
-            - name: http-mgmt
-              containerPort: 9000
           startupProbe:
             httpGet:
               path: /health/started
@@ -285,36 +114,78 @@ spec:
             periodSeconds: 10
             failureThreshold: 3
           resources:
-            requests:
-              cpu: "250m"
-              memory: "512Mi"
             limits:
-              cpu: "1"
-              memory: "2Gi"
-          volumeMounts:
-            - name: kc-data
-              mountPath: /opt/keycloak/data
-  volumeClaimTemplates:
-    - metadata:
-        name: kc-data
-      spec:
-        accessModes: ["ReadWriteOnce"]
-        storageClassName: nfs-client
-        resources:
-          requests:
-            storage: 5Gi
+              cpu: 2000m
+              memory: 2000Mi
+            requests:
+              cpu: 500m
+              memory: 1700Mi
 ---
-# Ingress (NGINX + cert-manager)
+# This is deployment of PostgreSQL with an ephemeral storage for testing: Once the Pod stops, the data is lost.
+# For a production setup, replace it with a database setup that persists your data.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres
+  labels:
+    app: postgres
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      containers:
+        - name: postgres
+          image: mirror.gcr.io/postgres:17
+          env:
+            - name: POSTGRES_USER
+              value: "keycloak"
+            - name: POSTGRES_PASSWORD
+              value: "keycloak"
+            - name: POSTGRES_DB
+              value: "keycloak"
+            - name: POSTGRES_LOG_STATEMENT
+              value: "all"
+          ports:
+            - name: postgres
+              containerPort: 5432
+          volumeMounts:
+            - name: postgres-data
+              mountPath: /var/lib/postgresql
+      volumes:
+        - name: postgres-data
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: postgres
+  name: postgres
+spec:
+  selector:
+    app: postgres
+  ports:
+    - protocol: TCP
+      port: 5432
+      targetPort: 5432
+  type: ClusterIP
+---
+
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: keycloak
-  namespace: keycloak
   annotations:
     kubernetes.io/ingress.class: "nginx"
     nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
     nginx.ingress.kubernetes.io/ssl-redirect: "true"
-    cert-manager.io/cluster-issuer: letsencrypt-prod
+    # cert-manager.io/cluster-issuer: letsencrypt-prod
 spec:
   ingressClassName: nginx
   tls:
