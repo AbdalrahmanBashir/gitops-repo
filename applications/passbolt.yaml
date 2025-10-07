@@ -27,7 +27,9 @@ spec:
             hosts:
               - host: passbolt.abdalrahman.tech
                 paths:
-                  - /
+                  - path: /
+                    pathType: Prefix
+                    port: http
             tls:
               - secretName: passbolt-tls
                 hosts:
@@ -83,7 +85,7 @@ spec:
     automated:
       prune: true
       selfHeal: true
-    syncOptions:
+
       - CreateNamespace=true
       - ServerSideApply=true
       - RespectIgnoreDifferences=true
