@@ -38,6 +38,7 @@ spec:
           enabled: true
           className: nginx
           annotations:
+            cert-manager.io/cluster-issuer: "letsencrypt-prod"
             nginx.ingress.kubernetes.io/ssl-redirect: "true"
             nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
           hosts:
@@ -46,6 +47,11 @@ spec:
                 - path: /
                   pathType: Prefix
                   port: 80
+          tls:
+            - hosts:
+                - passbolt.abdalrahman.tech
+              secretName: passbolt-tls
+                
 
         persistence:
           enabled: true
