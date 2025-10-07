@@ -58,11 +58,7 @@ spec:
               storageClass: nfs-client
               size: 10Gi
           metrics:
-            enabled: true
-            serviceMonitor:
-              enabled: true
-              labels:
-                release: kube-prometheus-stack
+            enabled: false
 
         redis:
           auth:
@@ -71,11 +67,7 @@ spec:
           sentinel:
             enabled: true
           metrics:
-            enabled: true
-            serviceMonitor:
-              enabled: true
-              labels:
-                release: kube-prometheus-stack
+            enabled: false
 
         passboltEnv:
           plain:
