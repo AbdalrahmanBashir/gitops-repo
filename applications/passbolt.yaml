@@ -48,6 +48,13 @@ spec:
             memory: "512Mi"
 
         postgresql:
+          global:
+            security:
+              allowInsecureImages: true
+          image:
+            registry: docker.io
+            repository: bitnamilegacy/postgresql
+            tag: "17"
           auth:
             username: passbolt
             password: "securepassword"
