@@ -125,6 +125,10 @@ spec:
       port: 8080
       targetPort: http
       name: http
+    - protocol: TCP
+      port: 9000
+      targetPort: 9000
+      name: metrics
 ---
 apiVersion: v1
 kind: Service
@@ -181,6 +185,11 @@ spec:
               value: "false"
             - name: KC_HEALTH_ENABLED
               value: "true"
+              # Metrics
+            - name: KC_METRICS_ENABLED
+              value: "true"
+            - name: KC_HTTP_METRICS_HISTOGRAM_ENABLED
+              value: "true"
 
             # Clustering (optional IPv6-safe bind)
             - name: POD_IP
@@ -209,6 +218,8 @@ spec:
           ports:
             - name: http
               containerPort: 8080
+            - name: management
+              containerPort: 9000
           startupProbe:
             httpGet:
               path: /health/started
@@ -234,6 +245,25 @@ spec:
             limits:
               cpu: "2000m"
               memory: "2000Mi"
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: keycloak
+  namespace: keycloak
+  labels:
+    release: kube-prometheus-stack
+spec:
+  namespaceSelector:
+    matchNames:
+      - keycloak
+  selector:
+    matchLabels:
+      app: keycloak
+  endpoints:
+    - port: metrics
+      interval: 30s
+      path: /metrics
 ---
 
 apiVersion: networking.k8s.io/v1
