@@ -64,6 +64,13 @@ spec:
               user: admin
               password: "admin"
               existingSecret: ""
+            ini:
+              auth:
+                anonymous:
+                  enabled: true
+                  org_role: Viewer
+              security:
+                allow_embedding: true
             ingress:
               enabled: true
               ingressClassName: nginx
